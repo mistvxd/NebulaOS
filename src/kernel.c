@@ -28,8 +28,6 @@ char* fs_name(struct File* f) {
     return f->name;
 }
 
-// ================= VGA =================
-
 uint16_t vga_entry(char c, uint8_t color) {
     return (uint16_t)c | (uint16_t)color << 8;
 }
@@ -139,8 +137,6 @@ void vga_print_color(const char* str, uint8_t color) {
         vga_putchar_color(str[i], color);
 }
 
-// ================= KEYBOARD =================
-
 uint8_t inb(uint16_t port) {
     uint8_t ret;
     __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -167,8 +163,6 @@ char keyboard_getchar() {
     if (sc & 0x80) return 0;
     return scancode_to_ascii(sc);
 }
-
-// ================= INPUT =================
 
 char input_buffer[INPUT_MAX];
 int input_pos = 0;
@@ -241,8 +235,6 @@ void wait_enter() {
     }
 }
 
-// ================= COMMAND SYSTEM =================
-
 typedef void (*command_func)(char*);
 
 struct Command {
@@ -275,8 +267,6 @@ int str_eq(const char* a, const char* b) {
     }
     return a[i] == 0 && b[i] == 0;
 }
-
-// ================= COMMANDS =================
 
 void cmd_clear(char* args) {
     vga_clear();
@@ -406,7 +396,6 @@ void cmd_editbin(char* args) {
     uint8_t buffer[256];
     int size = 0;
 
-    // ===== carregar existente =====
     struct File* f = read_bin(args);
 
     if (f) {
@@ -430,7 +419,7 @@ void cmd_editbin(char* args) {
         vga_print("\n\n");
     }
 
-    vga_print("enter hex (ex: 41 42 FF):\n");
+    vga_print("enter hex: \n");
     vga_update_cursor();
 
     char input[INPUT_MAX];
@@ -442,12 +431,10 @@ void cmd_editbin(char* args) {
         if (c == '\n') {
             input[pos] = 0;
 
-            // ===== parse =====
             size = 0;
 
             for (int i = 0; input[i] && size < 256;) {
 
-                // pula espaços
                 while (input[i] == ' ') i++;
 
                 if (!input[i]) break;
@@ -582,8 +569,6 @@ void test_user() {
     );
 }
 
-// ================= SHELL =================
-
 void execute_command() {
     input_finalize();
 
@@ -609,8 +594,6 @@ void execute_command() {
     vga_print("unknown\n");
 }
 
-// ================= MAIN =================
-
 void kernel_main(int x) {
     gdt_init();
     tss_init();
@@ -625,7 +608,6 @@ void kernel_main(int x) {
     heap_init();
     load_fs();
 
-    // programa de teste (string VM)
     if (!read_file("test.vm")) {
         char prog[] =
             "p ola mundo\n"
