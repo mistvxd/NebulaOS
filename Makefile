@@ -7,9 +7,13 @@ all:
 	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/disk.c -o build/disk.o
 	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/heap.c -o build/heap.o
 
-	nasm -f elf32 src/prog.asm -o build/prog.o
+	nasm -f elf32 src/programs/prog.asm -o build/prog.o
 	ld -m elf_i386 -T src/user_linker.ld -o build/prog.elf build/prog.o
-	objcopy -O binary build/prog.elf src/prog.bin
+	objcopy -O binary build/prog.elf src/programs/prog.bin
+
+	nasm -f elf32 src/programs/welcome.asm -o build/welcome.o
+	ld -m elf_i386 -T src/user_linker.ld -o build/welcome.elf build/welcome.o
+	objcopy -O binary build/welcome.elf src/programs/welcome.bin
 
 	nasm -f elf32 src/gdt_flush.asm -o build/gdt_flush.o
 	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/gdt.c -o build/gdt.o
@@ -31,11 +35,12 @@ all:
 	grub-mkrescue -o kiwi.iso iso
 
 run:
-	qemu-system-i386 -cdrom kiwi.iso -hda disk.img -d int -no-reboot
+	qemu-system-i386 -cdrom kiwi.iso -d int -hda disk.img
 
 clean:
 	rm -rf build iso *.iso
 
 disk:
 	dd if=/dev/zero of=disk.img bs=512 count=100
-	dd if=src/prog.bin of=disk.img bs=512 seek=10 conv=notrunc
+	dd if=src/programs/prog.bin of=disk.img bs=512 seek=10 conv=notrunc
+	dd if=src/programs/welcome.bin of=disk.img bs=512 seek=11 conv=notrunc

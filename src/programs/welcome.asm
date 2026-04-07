@@ -1,8 +1,8 @@
 [bits 32]
 
 section .data
-    msg db "hello world", 0
-    color db 10
+    msg db "Welcome to Kiwi OS!"
+    len equ $ - msg
 
 section .text
     global _start
@@ -10,7 +10,8 @@ section .text
 _start:
     mov eax, 2
     mov ebx, msg
-    mov ecx, color
+    mov ecx, 0x0A
+    mov edx, len
     int 0x80
 
     mov eax, 1

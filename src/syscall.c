@@ -2,6 +2,7 @@
 
 extern void vga_print(const char*);
 extern void vga_print_color(const char*, uint8_t);
+extern void vga_putchar(char, uint8_t);
 extern void itoa(int, char*);
 extern void kernel_main(int x);
 
@@ -22,13 +23,21 @@ struct interrupt_frame {
 };
 
 void syscall_handler(struct interrupt_frame* frame) {
-    uint32_t syscall_num = frame->eax; 
-    if (syscall_num == 1) {
-        kernel_main(0);
-    } else if (syscall_num == 2) {
-        char* str = (char*)frame->ebx;
-        uint8_t color = frame->ecx & 0xFF;
-        vga_print_color(str, color);
-        vga_print("\n");
+    switch (frame->eax) {
+        case 1:
+            kernel_main(0);
+            break;
+        case 2: {
+            char* str = (char*)frame->ebx;
+            uint8_t color = frame->ecx & 0x0F;
+            uint32_t len = frame->edx;
+            for (uint32_t i = 0; i < len; i++) {
+                vga_putchar(str[i], color);
+            }
+            vga_print("\n");
+            break;
+        }
+        default:
+            break;
     }
 }

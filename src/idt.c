@@ -3,6 +3,7 @@
 #include "headers/syscall.h"
 
 extern void syscall_stub();
+extern void kernel_main(int);
 
 struct IDTEntry {
     uint16_t offset_low;
@@ -31,7 +32,7 @@ extern void vga_print(const char*);
 
 void crash() {
     vga_print("EXCEPTION\n");
-    while (1);
+    kernel_main(0);
 }
 
 __attribute__((naked))
