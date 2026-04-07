@@ -2,23 +2,15 @@
 
 struct TSS tss;
 
-static uint8_t kernel_stack[4096];
+void tss_init(uint32_t kernel_stack_top) {
+    uint8_t* ptr = (uint8_t*)&tss;
+    for (uint32_t i = 0; i < sizeof(struct TSS); i++) ptr[i] = 0;
 
-void tss_flush() {
-    asm volatile (
-        "mov $0x28, %%ax\n"
-        "ltr %%ax\n"
-        :
-        :
-        : "ax"
-    );
+    tss.ss0 = 0x10;
+    tss.esp0 = kernel_stack_top;
+    tss.iomap_base = sizeof(struct TSS);
 }
 
-void tss_init() {
-    for (int i = 0; i < sizeof(struct TSS); i++)
-        ((uint8_t*)&tss)[i] = 0;
-    tss.ss0 = 0x10;
-    static uint8_t kernel_stack[4096];
-    tss.esp0 = (uint32_t)(kernel_stack + sizeof(kernel_stack));
-    tss.iomap_base = sizeof(struct TSS);
+void tss_flush() {
+    asm volatile("mov $0x2B, %%ax; ltr %%ax" ::: "ax");
 }

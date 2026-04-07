@@ -1,33 +1,34 @@
 #include <stdint.h>
 
 extern void vga_print(const char*);
+extern void vga_print_color(const char*, uint8_t);
+extern void itoa(int, char*);
+extern void kernel_main(int x);
 
-typedef struct regs {
-    uint32_t edi;
-    uint32_t esi;
-    uint32_t ebp;
-    uint32_t esp;
-    uint32_t ebx;
-    uint32_t edx;
-    uint32_t ecx;
-    uint32_t eax;
-} regs_t;
-
-void syscall_handler(regs_t* r) {
-    uint32_t eax = r->eax;
-    uint32_t ebx = r->ebx;
-    uint32_t ecx = r->ecx;
-
+void debug(uint32_t val) {
+    char buf[32];
+    itoa(val, buf);
+    vga_print(buf);
     vga_print("\n");
+}
 
-    if (eax == 1) vga_print("EAX OK\n");
-    else vga_print("EAX BAD\n");
+struct interrupt_frame {
+    uint32_t gs, fs, es, ds;
 
-    if (ebx == 5) vga_print("EBX OK\n");
-    else vga_print("EBX BAD\n");
+    uint32_t edi, esi, ebp, esp_dummy;
+    uint32_t ebx, edx, ecx, eax;
 
-    if (ecx == 10) vga_print("ECX OK\n");
-    else vga_print("ECX BAD\n");
+    uint32_t eip, cs, eflags, useresp, ss;
+};
 
-    while (1);
+void syscall_handler(struct interrupt_frame* frame) {
+    uint32_t syscall_num = frame->eax; 
+    if (syscall_num == 1) {
+        kernel_main(0);
+    } else if (syscall_num == 2) {
+        char* str = (char*)frame->ebx;
+        uint8_t color = frame->ecx & 0xFF;
+        vga_print_color(str, color);
+        vga_print("\n");
+    }
 }

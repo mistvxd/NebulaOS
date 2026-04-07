@@ -1,5 +1,29 @@
-bits 32
-global user_stub
+[BITS 32]
+global syscall_stub
+extern syscall_handler
 
-user_stub:
-    jmp $
+section .text
+
+syscall_stub:
+    pushad
+    push ds
+    push es
+    push fs
+    push gs
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    push esp
+    call syscall_handler
+    add esp, 4
+
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popad
+    iretd

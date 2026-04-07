@@ -2,6 +2,8 @@
 #include "headers/ports.h"
 #include "headers/syscall.h"
 
+extern void syscall_stub();
+
 struct IDTEntry {
     uint16_t offset_low;
     uint16_t selector;
@@ -19,6 +21,7 @@ struct IDTEntry idt[256];
 struct IDTPtr idt_ptr;
 
 typedef struct regs {
+    uint32_t gs, fs, es, ds;
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
 } regs_t;
 
@@ -50,40 +53,6 @@ void isr_stub() {
     __asm__ volatile (
         "pusha\n"
         "call crash\n"
-        "popa\n"
-        "iret\n"
-    );
-}
-
-__attribute__((naked))
-void syscall_stub() {
-    __asm__ volatile (
-        "pusha\n"
-        "cld\n"
-
-        "push %ds\n"
-        "push %es\n"
-        "push %fs\n"
-        "push %gs\n"
-
-        "mov $0x10, %ax\n"
-        "mov %ax, %ds\n"
-        "mov %ax, %es\n"
-        "mov %ax, %fs\n"
-        "mov %ax, %gs\n"
-
-        "mov %esp, %eax\n"
-        "add $16, %eax\n"
-        "push %eax\n"
-
-        "call syscall_handler\n"
-        "add $4, %esp\n"
-
-        "pop %gs\n"
-        "pop %fs\n"
-        "pop %es\n"
-        "pop %ds\n"
-
         "popa\n"
         "iret\n"
     );

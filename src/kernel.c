@@ -12,6 +12,7 @@
 #define MAX_COMMANDS 16
 #define INPUT_MAX 128
 #define USER_CODE 0x200000
+extern uint32_t stack_top;
 void* user_target = 0;
 
 volatile uint16_t* VGA_MEMORY = (uint16_t*)0xB8000;
@@ -489,8 +490,6 @@ void enter_user_mode(void* entry) {
     static uint8_t user_stack[4096] __attribute__((aligned(16)));
     uint32_t user_sp = (uint32_t)(user_stack + sizeof(user_stack));
 
-    vga_print("swapped to ring3.");
-
     asm volatile (
         "cli\n"
         "pushl $0x23\n"
@@ -512,14 +511,7 @@ extern void user_stub();
 void run_user(void* data, uint32_t size) {
     char buf[16];
 
-    vga_print("swapping to ring3...\n");
-
     memcpy((void*)USER_CODE, data, size);
-
-    vga_print("copied to: ");
-    itoa(USER_CODE, buf);
-    vga_print(buf);
-    vga_print("\n");
 
     enter_user_mode((void*)USER_CODE);
 }
@@ -596,7 +588,7 @@ void execute_command() {
 
 void kernel_main(int x) {
     gdt_init();
-    tss_init();
+    tss_init((uint32_t)&stack_top);
     tss_flush();
     idt_init();
     pic_remap();

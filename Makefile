@@ -2,18 +2,22 @@ all:
 	mkdir -p build
 
 	nasm -f elf32 src/boot.s -o build/boot.o
-	gcc -m32 -ffreestanding -c src/kernel.c -o build/kernel.o
-	gcc -m32 -ffreestanding -c src/filesystem.c -o build/filesystem.o
-	gcc -m32 -ffreestanding -c src/disk.c -o build/disk.o
-	gcc -m32 -ffreestanding -c src/heap.c -o build/heap.o
-	nasm -f bin src/prog.asm -o src/prog.bin
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/kernel.c -o build/kernel.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/filesystem.c -o build/filesystem.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/disk.c -o build/disk.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/heap.c -o build/heap.o
+
+	nasm -f elf32 src/prog.asm -o build/prog.o
+	ld -m elf_i386 -T src/user_linker.ld -o build/prog.elf build/prog.o
+	objcopy -O binary build/prog.elf src/prog.bin
+
 	nasm -f elf32 src/gdt_flush.asm -o build/gdt_flush.o
-	gcc -m32 -ffreestanding -c src/gdt.c -o build/gdt.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/gdt.c -o build/gdt.o
 	nasm -f elf32 src/idt_load.asm -o build/idt_load.o
-	gcc -m32 -ffreestanding -c src/idt.c -o build/idt.o
-	gcc -m32 -ffreestanding -c src/tss.c -o build/tss.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/idt.c -o build/idt.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/tss.c -o build/tss.o
 	nasm -f elf32 src/user_stub.asm -o build/user_stub.o
-	gcc -m32 -ffreestanding -c src/syscall.c -o build/syscall.o
+	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/syscall.c -o build/syscall.o
 
 	ld -m elf_i386 -T src/linker.ld -o build/kernel.bin build/boot.o build/kernel.o build/filesystem.o build/disk.o build/heap.o build/gdt_flush.o build/gdt.o build/idt_load.o build/idt.o build/tss.o build/user_stub.o build/syscall.o
 
@@ -27,7 +31,7 @@ all:
 	grub-mkrescue -o kiwi.iso iso
 
 run:
-	qemu-system-i386 -cdrom kiwi.iso -hda disk.img -no-reboot -display gtk,gl=off
+	qemu-system-i386 -cdrom kiwi.iso -hda disk.img -d int -no-reboot
 
 clean:
 	rm -rf build iso *.iso
