@@ -1,7 +1,7 @@
 [bits 32]
 
 section .data
-    msg db "Welcome to Kiwi OS!"
+    msg db "Welcome to Kiwi OS!", 10
     len equ $ - msg
 
 section .text

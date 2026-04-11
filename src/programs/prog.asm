@@ -1,34 +1,63 @@
-[bits 32]
+[BITS 32]
+
+%define SYS_EXIT        1
+%define SYS_WRITE       2
+%define SYS_FS_READDIR  3
+%define SYS_FS_CHDIR    4
+%define SYS_FS_OPEN     5
+%define SYS_FS_READ     6
+%define SYS_FS_WRITE    7
 
 section .data
-    msg1 db "rosas sao vermelhas"
-    len1 equ $ - msg1
-    msg2 db "violetas sao azuis"
-    len2 equ $ - msg2
-    msg3 db "seu sistema operacional ira explodir"
-    len3 equ $ - msg3
+filename db "/test.txt", 0
+msg db "hello", 0
+nl db 10
+
+section .bss
+buf resb 64
 
 section .text
-    global _start
+global _start
 
 _start:
-    mov eax, 2
-    mov ebx, msg1
-    mov ecx, 0x0C
-    mov edx, len1
+    mov eax, SYS_FS_OPEN
+    mov ebx, filename
+    mov ecx, 1
     int 0x80
 
-    mov eax, 2
-    mov ebx, msg2
-    mov ecx, 0x09
-    mov edx, len2
+    mov esi, eax
+
+    mov eax, SYS_FS_WRITE
+    mov ebx, esi
+    mov ecx, msg
+    mov edx, 5
     int 0x80
 
-    mov eax, 2
-    mov ebx, msg3
-    mov ecx, 0x0D
-    mov edx, len3
+    mov eax, SYS_FS_OPEN
+    mov ebx, filename
+    mov ecx, 0
     int 0x80
 
-    mov eax, 1
+    mov esi, eax
+
+    mov eax, SYS_FS_READ
+    mov ebx, esi
+    mov ecx, buf
+    mov edx, 64
+    int 0x80
+
+    mov edx, eax
+
+    mov eax, SYS_WRITE
+    mov ebx, buf
+    mov ecx, 0x0F
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, nl
+    mov ecx, 0x0F
+    mov edx, 1
+    int 0x80
+
+    mov eax, SYS_EXIT
     int 0x80

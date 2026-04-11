@@ -1,6 +1,11 @@
 [BITS 32]
+
 global syscall_stub
 extern syscall_handler
+extern kernel_esp
+extern kernel_eip
+extern current_process_active
+extern kernel_stack_top
 
 section .text
 
@@ -21,6 +26,16 @@ syscall_stub:
     call syscall_handler
     add esp, 4
 
+    jmp .return
+
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popad
+    iretd
+
+.return:
     pop gs
     pop fs
     pop es

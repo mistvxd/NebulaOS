@@ -1,46 +1,90 @@
-all:
-	mkdir -p build
+BUILD = build
+SRC = src
+ISO = iso
 
-	nasm -f elf32 src/boot.s -o build/boot.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/kernel.c -o build/kernel.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/filesystem.c -o build/filesystem.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/disk.c -o build/disk.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/heap.c -o build/heap.o
+CFLAGS = -m32 -ffreestanding -mpreferred-stack-boundary=2
+LDFLAGS = -m elf_i386
 
-	nasm -f elf32 src/programs/prog.asm -o build/prog.o
-	ld -m elf_i386 -T src/user_linker.ld -o build/prog.elf build/prog.o
-	objcopy -O binary build/prog.elf src/programs/prog.bin
+PROGRAMS = prog welcome cd ls
 
-	nasm -f elf32 src/programs/welcome.asm -o build/welcome.o
-	ld -m elf_i386 -T src/user_linker.ld -o build/welcome.elf build/welcome.o
-	objcopy -O binary build/welcome.elf src/programs/welcome.bin
+all: kiwi.iso disk.img
 
-	nasm -f elf32 src/gdt_flush.asm -o build/gdt_flush.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/gdt.c -o build/gdt.o
-	nasm -f elf32 src/idt_load.asm -o build/idt_load.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/idt.c -o build/idt.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/tss.c -o build/tss.o
-	nasm -f elf32 src/user_stub.asm -o build/user_stub.o
-	gcc -m32 -ffreestanding -mpreferred-stack-boundary=2 -c src/syscall.c -o build/syscall.o
+$(BUILD):
+	mkdir -p $(BUILD)
 
-	ld -m elf_i386 -T src/linker.ld -o build/kernel.bin build/boot.o build/kernel.o build/filesystem.o build/disk.o build/heap.o build/gdt_flush.o build/gdt.o build/idt_load.o build/idt.o build/tss.o build/user_stub.o build/syscall.o
+# ================= KERNEL =================
 
-	mkdir -p iso/boot/grub
-	cp build/kernel.bin iso/boot/kernel.bin
+$(BUILD)/boot.o: $(SRC)/boot.s | $(BUILD)
+	nasm -f elf32 $< -o $@
 
-	echo 'set timeout=0' > iso/boot/grub/grub.cfg
-	echo 'set default=0' >> iso/boot/grub/grub.cfg
-	echo 'menuentry "kiwi os" { multiboot /boot/kernel.bin }' >> iso/boot/grub/grub.cfg
+$(BUILD)/%.o: $(SRC)/%.c | $(BUILD)
+	gcc $(CFLAGS) -c $< -o $@
 
-	grub-mkrescue -o kiwi.iso iso
+$(BUILD)/gdt_flush.o: $(SRC)/gdt_flush.asm | $(BUILD)
+	nasm -f elf32 $< -o $@
 
-run:
+$(BUILD)/idt_load.o: $(SRC)/idt_load.asm | $(BUILD)
+	nasm -f elf32 $< -o $@
+
+$(BUILD)/user_stub.o: $(SRC)/user_stub.asm | $(BUILD)
+	nasm -f elf32 $< -o $@
+
+KERNEL_OBJS = \
+	$(BUILD)/boot.o \
+	$(BUILD)/kernel.o \
+	$(BUILD)/filesystem.o \
+	$(BUILD)/disk.o \
+	$(BUILD)/heap.o \
+	$(BUILD)/paging.o \
+	$(BUILD)/gdt_flush.o \
+	$(BUILD)/gdt.o \
+	$(BUILD)/idt_load.o \
+	$(BUILD)/idt.o \
+	$(BUILD)/tss.o \
+	$(BUILD)/user_stub.o \
+	$(BUILD)/syscall.o
+
+$(BUILD)/kernel.bin: $(KERNEL_OBJS)
+	ld $(LDFLAGS) -T $(SRC)/linker.ld -o $@ $^
+
+# ================= USER PROGRAMS =================
+
+$(BUILD)/%.o: $(SRC)/programs/%.asm | $(BUILD)
+	nasm -f elf32 $< -o $@
+
+$(BUILD)/%.elf: $(BUILD)/%.o
+	ld $(LDFLAGS) -T $(SRC)/user_linker.ld -o $@ $^
+
+$(SRC)/programs/%.bin: $(BUILD)/%.elf
+	objcopy -O binary $< $@
+
+programs: $(PROGRAMS:%=$(SRC)/programs/%.bin)
+
+# ================= ISO =================
+
+kiwi.iso: $(BUILD)/kernel.bin
+	mkdir -p $(ISO)/boot/grub
+	cp $< $(ISO)/boot/kernel.bin
+	echo 'set timeout=0' > $(ISO)/boot/grub/grub.cfg
+	echo 'set default=0' >> $(ISO)/boot/grub/grub.cfg
+	echo 'menuentry "kiwi os" { multiboot /boot/kernel.bin }' >> $(ISO)/boot/grub/grub.cfg
+	grub-mkrescue -o $@ $(ISO)
+
+# ================= DISK =================
+
+disk.img: programs
+	dd if=/dev/zero of=$@ bs=512 count=100
+	dd if=$(SRC)/programs/prog.bin of=$@ bs=512 seek=10 conv=notrunc
+	dd if=$(SRC)/programs/welcome.bin of=$@ bs=512 seek=11 conv=notrunc
+	dd if=$(SRC)/programs/cd.bin of=$@ bs=512 seek=12 conv=notrunc
+	dd if=$(SRC)/programs/ls.bin of=$@ bs=512 seek=13 conv=notrunc
+
+# ================= RUN =================
+
+run: kiwi.iso disk.img
 	qemu-system-i386 -cdrom kiwi.iso -d int -hda disk.img
 
-clean:
-	rm -rf build iso *.iso
+# ================= CLEAN =================
 
-disk:
-	dd if=/dev/zero of=disk.img bs=512 count=100
-	dd if=src/programs/prog.bin of=disk.img bs=512 seek=10 conv=notrunc
-	dd if=src/programs/welcome.bin of=disk.img bs=512 seek=11 conv=notrunc
+clean:
+	rm -rf $(BUILD) $(ISO) *.iso disk.img

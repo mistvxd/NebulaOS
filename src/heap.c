@@ -80,3 +80,14 @@ void free(void* ptr) {
         }
     }
 }
+
+void* alloc_page_aligned() {
+    uint32_t addr = (uint32_t)malloc(4096 + 4096);
+    if (!addr) return 0;
+
+    if (addr & 0xFFF) {
+        addr = (addr & ~0xFFF) + 0x1000;
+    }
+
+    return (void*)addr;
+}
