@@ -6,6 +6,7 @@ extern void syscall_stub();
 extern void kernel_main(int);
 extern void vga_print_color(const char*, uint8_t);
 extern void vga_print_hex(uint32_t);
+extern void program_exit();
 
 struct IDTEntry {
     uint16_t offset_low;
@@ -98,22 +99,36 @@ void exception_handler(struct interrupt_frame *frame) {
     vga_print_hex(frame->eip);
     vga_print_color(" ]--- \n", 0x0E);
 
-    while(1) {
-        asm volatile("cli; hlt");
-    }
+    process_exit();
 }
 
 __attribute__((naked))
-void irq0_stub() {
+void irq_stub() {
     __asm__ volatile (
         "pusha\n"
-        "call irq0_handler\n"
+        "call irq_handler\n"
         "popa\n"
         "iret\n"
     );
 }
 
-void irq0_handler() {
+void irq_handler() {
+    vga_print("PENIS");
+    outb(0x20, 0x20);
+}
+
+__attribute__((naked))
+void keyboard_stub() {
+    __asm__ volatile (
+        "pusha\n"
+        "call keyboard_handler\n"
+        "popa\n"
+        "iret\n"
+    );
+}
+
+void keyboard_handler() {
+    //inb(0x60);
     outb(0x20, 0x20);
 }
 
@@ -122,7 +137,7 @@ void isr_stub() {
     __asm__ volatile (
         "pusha\n"
         "push $0\n"
-        "push $13\n"
+        "push $8\n"
         "push %esp\n"
         "call exception_handler\n"
         "add $12, %esp\n"
@@ -142,10 +157,12 @@ void idt_set(int i, uint32_t handler) {
 void idt_init() {
     idt_ptr.limit = sizeof(idt) - 1;
     idt_ptr.base = (uint32_t)&idt;
-    for (int i = 0; i < 256; i++)
+    for (int i = 0; i < 32; i++)
         idt_set(i, (uint32_t)isr_stub);
-    idt_set(0x20, (uint32_t)irq0_stub);
+    for (int i = 32; i < 48; i++)
+        idt_set(i, (uint32_t)irq_stub);
     idt_set(0x80, (uint32_t)syscall_stub);
+    idt_set(0x21, (uint32_t)keyboard_stub);
     idt[0x80].type_attr = 0xEE;
     idt_load((uint32_t)&idt_ptr);
 }

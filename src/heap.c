@@ -18,6 +18,24 @@ uint32_t align4(uint32_t size) {
 
 static Block* heap_head = 0;
 
+uint32_t heap_used() {
+    uint32_t used = 0;
+    Block* curr = heap_head;
+
+    while (curr) {
+        if (!curr->free) {
+            used += curr->size;
+        }
+        curr = curr->next;
+    }
+
+    return used;
+}
+
+uint32_t heap_total() {
+    return (uint32_t)&heap_end - (uint32_t)&heap_start;
+}
+
 void heap_init() {
     debug_print("Initializing heap...\n");
     heap_head = (Block*)&heap_start;

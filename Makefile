@@ -5,7 +5,7 @@ ISO = iso
 CFLAGS = -m32 -ffreestanding -mpreferred-stack-boundary=2
 LDFLAGS = -m elf_i386
 
-PROGRAMS = prog welcome cd ls
+PROGRAMS = prog welcome cd ls cat
 
 all: kiwi.iso disk.img
 
@@ -74,10 +74,12 @@ kiwi.iso: $(BUILD)/kernel.bin
 
 disk.img: programs
 	dd if=/dev/zero of=$@ bs=512 count=100
-	dd if=$(SRC)/programs/prog.bin of=$@ bs=512 seek=10 conv=notrunc
-	dd if=$(SRC)/programs/welcome.bin of=$@ bs=512 seek=11 conv=notrunc
-	dd if=$(SRC)/programs/cd.bin of=$@ bs=512 seek=12 conv=notrunc
-	dd if=$(SRC)/programs/ls.bin of=$@ bs=512 seek=13 conv=notrunc
+
+	i=10; \
+	for p in $(PROGRAMS); do \
+		dd if=$(SRC)/programs/$$p.bin of=$@ bs=512 seek=$$i conv=notrunc; \
+		i=$$((i+1)); \
+	done
 
 # ================= RUN =================
 

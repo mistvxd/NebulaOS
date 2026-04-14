@@ -8,8 +8,10 @@ section .data
 nl db 10
 prefix db 16, 32, "["
 prefix_len equ $ - prefix
-suffix db "]"
+suffix db "]  - "
 suffix_len equ $ - suffix
+susuffix db "B"
+susuffix_len equ $ - susuffix
 nofiles db "[empty]", 10
 nofiles_len equ $ - nofiles
 
@@ -17,6 +19,7 @@ section .bss
 ent resb 36
 i   resd 1
 printed resd 1
+size resd 6
 
 section .text
 global _start
@@ -44,6 +47,7 @@ _start:
     mov ecx, [i]
     mov edx, ent
     int 0x80
+    mov eax, size
 
     mov al, [ent]
     cmp al, 0
@@ -69,6 +73,19 @@ _start:
     mov ebx, suffix
     mov ecx, 0x07
     mov edx, suffix_len
+    int 0x80
+
+    mov edx, 1
+
+    mov eax, SYS_WRITE
+    mov ebx, 0
+    mov ecx, 0x0F
+    int 0x80
+
+    mov eax, SYS_WRITE
+    mov ebx, susuffix
+    mov ecx, 0x0F
+    mov edx, susuffix_len
     int 0x80
 
     mov eax, SYS_WRITE

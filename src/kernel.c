@@ -24,6 +24,9 @@ jmp_buf kernel_ctx;
 uint32_t kernel_esp = 0;
 uint32_t kernel_eip = 0;
 
+extern uint32_t heap_used();
+extern uint32_t heap_total();
+
 char* path_dirs[] = {
     "/bin",
     "/",
@@ -50,8 +53,28 @@ int cursor_y = 0;
 char input_buffer[INPUT_MAX];
 int input_pos = 0;
 
+extern uint8_t inb(unsigned short);
+extern void outb(unsigned short, unsigned char);
+
 uint16_t vga_entry(char c, uint8_t color) {
     return (uint16_t)c | ((uint16_t)color << 8);
+}
+
+void pic_remap() {
+    outb(0x20, 0x11);
+    outb(0xA0, 0x11);
+
+    outb(0x21, 0x20);
+    outb(0xA1, 0x28);
+
+    outb(0x21, 0x04);
+    outb(0xA1, 0x02);
+
+    outb(0x21, 0x01);
+    outb(0xA1, 0x01);
+
+    outb(0x21, 0x00);
+    outb(0xA1, 0x00);
 }
 
 __attribute__((naked)) int setjmp(jmp_buf* buf) {
@@ -310,6 +333,7 @@ void enter_user_mode(void* entry, int argc, char** argv) {
         "pushl $0x2\n"
         "pushl $0x1B\n"
         "pushl %0\n"
+        "sti\n"
         "iret\n"
         :
         : "r"(entry), "r"(user_sp)
@@ -393,6 +417,45 @@ void print_path(uint8_t color) {
     }
 }
 
+void kernel_print_info() {
+    char buf[32];
+
+    for (int i = 0; i < 16; i++) { vga_putchar('=', 0x08); vga_putchar('-', 0x08); }
+
+    vga_print_color("\n  mem    : ", 0x07);
+    itoa(4096, buf);
+    vga_print_color(buf, 0x0D);
+    vga_print(" KB\n");
+
+    vga_print_color("  heap   : ", 0x07);
+    itoa(heap_used(), buf);
+    vga_print_color(buf, 0x0C);
+    vga_print(" / ");
+    itoa(heap_total(), buf);
+    vga_print_color(buf, 0x0A);
+    vga_print(" bytes\n");
+
+    vga_print_color("  files  : ", 0x07);
+    itoa(file_count, buf);
+    vga_print_color(buf, 0x0B);
+    vga_print("\n");
+
+    vga_print_color("  cwd    : ", 0x07);
+    print_path(0x0A);
+    vga_print("\n");
+
+    vga_print_color("  irq    : ", 0x07);
+    vga_print_color("enabled", 0x0A);
+    vga_print("\n");
+
+    vga_print_color("  paging : ", 0x07);
+    vga_print_color("enabled", 0x0A);
+    vga_print("\n\n");
+
+    for (int i = 0; i < 16; i++) { vga_putchar('=', 0x08); vga_putchar('-', 0x08); }
+    vga_print("\n");
+}
+
 void shell() {
     while (1) {
         print_path(0x02);
@@ -459,6 +522,7 @@ void kernel_main(int x) {
     tss_init((uint32_t)&stack_top);
     tss_flush();
     idt_init();
+    pic_remap();
     paging_init();
     for (uint32_t i = 0; i < 16 * 1024 * 1024; i += 0x1000) {
         map_kernel_page(i, i);
@@ -479,31 +543,42 @@ void kernel_main(int x) {
     load_fs();
 
     resolve_dir_path("/teste", 1);
+    resolve_dir_path("/teste/teste2", 1);
+    resolve_dir_path("/bin", 1);
 
     uint8_t buffer[512];
     read_sector(10, buffer);
 
-    create_bin("prog.bin", buffer, 512);
+    create_bin("bin/prog.bin", buffer, 512);
     save_fs();
 
     read_sector(11, buffer);
 
-    create_bin("welcome.bin", buffer, 512);
+    create_bin("bin/welcome.bin", buffer, 512);
     save_fs();
 
     read_sector(12, buffer);
 
-    create_bin("cd.bin", buffer, 512);
+    create_bin("bin/cd.bin", buffer, 512);
     save_fs();
 
     read_sector(13, buffer);
 
-    create_bin("ls.bin", buffer, 512);
+    create_bin("bin/ls.bin", buffer, 512);
+    save_fs();
+
+    read_sector(14, buffer);
+
+    create_bin("bin/cat.bin", buffer, 512);
     save_fs();
 
     if (x == 1) {
         run_raw(find_program("welcome.bin"), 1, (char*[1]){"test"});
+        //kernel_print_info();
     }
+
+    outb(0x21, 0xFD);
+    outb(0xA1, 0xFF);
 
     shell();
 }

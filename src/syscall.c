@@ -7,6 +7,7 @@ extern void process_exit();
 extern void vga_print(const char*);
 extern void itoa(int, char*);
 extern void vga_print_hex(uint32_t);
+extern char keyboard_getchar();
 
 #define SYS_EXIT        1
 #define SYS_WRITE       2
@@ -15,6 +16,7 @@ extern void vga_print_hex(uint32_t);
 #define SYS_FS_OPEN     5
 #define SYS_FS_READ     6
 #define SYS_FS_WRITE    7
+#define SYS_READ        8
 
 #define USER_MAX 0x400000
 
@@ -66,6 +68,29 @@ static int copy_str_from_user(char* dst, const char* src, uint32_t max) {
     return -1;
 }
 
+int sys_read(char* buffer, int max) {
+    int i = 0;
+
+    while (i < max - 1) {
+        char c = keyboard_getchar();
+        if (!c) continue;
+
+        if (c == '\n') {
+            buffer[i] = 0;
+            return i;
+        }
+
+        if (c == '\b') {
+            if (i > 0) i--;
+        } else {
+            buffer[i++] = c;
+        }
+    }
+
+    buffer[i] = 0;
+    return i;
+}
+
 uint32_t syscall_handler(struct interrupt_frame* frame) {
     switch (frame->eax) {
 
@@ -91,6 +116,7 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
             char* path = (char*)frame->ebx;
             int index = frame->ecx;
             struct dirent* user_ent = (struct dirent*)frame->edx;
+            int mode = frame->esi;
 
             int dir = current_dir;
 
@@ -121,7 +147,7 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
                     kent.kind = files[i].kind;
 
                     copy_to_user(user_ent, &kent, sizeof(kent));
-                    return 0;
+                    return files[i].size;
                 }
 
                 found++;
@@ -148,17 +174,6 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
         case SYS_FS_OPEN: {
             char* user_path = (char*)frame->ebx;
             int mode = frame->ecx;
-            vga_print("SYSCALL: OPEN\n");
-            vga_print("PATH: ");
-            vga_print(user_path);
-            vga_print("\n");
-            vga_print("MODE: ");
-            char mode_str[16];
-            itoa(mode, mode_str);
-            vga_print(mode_str);
-            vga_print("\n");
-            vga_print("VALID PATH: ");
-            vga_print(valid_user_ptr(user_path, 1) ? "YES\n" : "NO\n");
             char kpath[128];
             if (copy_str_from_user(kpath, user_path, sizeof(kpath)) < 0) {
                 return -1;
@@ -211,8 +226,18 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
 		    files[idx].data = kbuf;
 		    files[idx].size = size;
 
+            save_fs();
+
 		    return size;
 		}
+
+        case SYS_READ: {
+            char* buffer = frame->ebx;
+            int max = frame->ecx;
+            int ret = sys_read(buffer, max);
+
+            return ret;
+        }
     }
 
     return 0;

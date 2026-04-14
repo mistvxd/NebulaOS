@@ -1,63 +1,55 @@
-[BITS 32]
-
-%define SYS_EXIT        1
-%define SYS_WRITE       2
-%define SYS_FS_READDIR  3
-%define SYS_FS_CHDIR    4
-%define SYS_FS_OPEN     5
-%define SYS_FS_READ     6
-%define SYS_FS_WRITE    7
-
+[bits 32]
 section .data
+msg db "digite algo guloso: "
+msg_len equ $ - msg
+msg2 db "salvo em test.txt"
+msg2_len equ $ - msg2
 filename db "/test.txt", 0
-msg db "hello", 0
 nl db 10
+nl_len equ 1
 
 section .bss
-buf resb 64
+buffer resb 64
 
 section .text
 global _start
 
 _start:
-    mov eax, SYS_FS_OPEN
+    mov eax, 2
+    mov ebx, msg
+    mov ecx, 0x0F
+    mov edx, msg_len
+    int 0x80
+
+    mov eax, 8
+    mov ebx, buffer
+    mov ecx, 64
+    int 0x80
+
+    mov esi, eax
+
+    mov edx, eax
+    mov eax, 2
+    mov ebx, buffer
+    mov ecx, 0x0F
+    int 0x80
+
+    mov eax, 2
+    mov ebx, nl
+    mov ecx, 0x0F
+    mov edx, nl_len
+    int 0x80
+
+    mov eax, 5
     mov ebx, filename
     mov ecx, 1
     int 0x80
 
-    mov esi, eax
-
-    mov eax, SYS_FS_WRITE
-    mov ebx, esi
-    mov ecx, msg
-    mov edx, 5
+    mov ebx, eax
+    mov eax, 7
+    mov ecx, buffer
+    mov edx, esi
     int 0x80
 
-    mov eax, SYS_FS_OPEN
-    mov ebx, filename
-    mov ecx, 0
-    int 0x80
-
-    mov esi, eax
-
-    mov eax, SYS_FS_READ
-    mov ebx, esi
-    mov ecx, buf
-    mov edx, 64
-    int 0x80
-
-    mov edx, eax
-
-    mov eax, SYS_WRITE
-    mov ebx, buf
-    mov ecx, 0x0F
-    int 0x80
-
-    mov eax, SYS_WRITE
-    mov ebx, nl
-    mov ecx, 0x0F
-    mov edx, 1
-    int 0x80
-
-    mov eax, SYS_EXIT
+    mov eax, 1
     int 0x80

@@ -40,5 +40,6 @@ syscall_stub:
     pop fs
     pop es
     pop ds
+    cli
     popad
     iretd
