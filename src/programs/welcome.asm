@@ -1,7 +1,7 @@
 [bits 32]
 
 section .data
-    msg db "Welcome to Kiwi OS!", 10
+    msg db "Welcome to NebulaOS!", 10
     len equ $ - msg
 
 section .text
@@ -10,7 +10,7 @@ section .text
 _start:
     mov eax, 2
     mov ebx, msg
-    mov ecx, 0x0A
+    mov ecx, 0x09
     mov edx, len
     int 0x80
 

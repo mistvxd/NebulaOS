@@ -13,8 +13,14 @@ File* files = file_storage;
 int file_count = 0;
 int current_dir = 0;
 bool debug_mode = false;
+extern char user_path_base;
+
+extern char* current_user;
+extern int strcmp(char*, char*);
 
 extern void vga_print(const char*);
+extern void vga_print_color(const char*, uint8_t);
+extern void vga_print_hex(uint32_t);
 
 extern void itoa(int num, char* str);
 
@@ -145,7 +151,17 @@ static int next_segment(const char* path, int* pos, char* seg, int* more) {
     return 1;
 }
 
-static int create_dir_entry(int parent, char* name) {
+int has_permission(File f) {
+    if (strcmp(current_user, "root") == 0)
+        return 1;
+
+    if (strcmp(f.owner, current_user) == 0)
+        return 1;
+
+    return 0;
+}
+
+static int create_dir_entry(int parent, char* name, int root_guided) {
     int idx = alloc_slot();
     if (idx < 0) return -1;
     clear_slot(idx);
@@ -153,10 +169,12 @@ static int create_dir_entry(int parent, char* name) {
     files[idx].kind = FS_KIND_DIR;
     files[idx].alive = 1;
     files[idx].parent = parent;
+    files[idx].perms = PERM_READ | PERM_WRITE;
+    str_copy16(files[idx].owner, current_user);
     return idx;
 }
 
-int resolve_dir_path(char* path, int create_missing) {
+int resolve_dir_path(char* path, int create_missing, int root_guided) {
     fs_init_root();
 
     if (!path || !path[0]) return current_dir;
@@ -185,7 +203,7 @@ int resolve_dir_path(char* path, int create_missing) {
 
         if (child < 0) {
             if (!create_missing) return -1;
-            child = create_dir_entry(cur, seg);
+            child = create_dir_entry(cur, seg, root_guided);
             if (child < 0) return -1;
         } else if (files[child].kind != FS_KIND_DIR) {
             return -1;
@@ -231,11 +249,16 @@ static int resolve_parent_path(char* path, int create_missing, char* leaf) {
             continue;
         }
 
+        if (str_eq(seg, "~")) {
+            cur = user_path_base;
+            continue;
+        }
+
         int child = find_child(cur, seg, 0xFF);
 
         if (child < 0) {
             if (!create_missing) return -1;
-            child = create_dir_entry(cur, seg);
+            child = create_dir_entry(cur, seg, 0);
             if (child < 0) return -1;
         } else if (files[child].kind != FS_KIND_DIR) {
             return -1;
@@ -298,6 +321,8 @@ static void create_common(char* name, uint8_t* data, int size, uint8_t kind) {
     files[idx].parent = parent;
     files[idx].size = size;
     files[idx].data = malloc(size);
+    files[idx].perms = PERM_READ | PERM_WRITE;
+    str_copy16(files[idx].owner, current_user);
     if (!files[idx].data) {
         files[idx].alive = 0;
         files[idx].size = 0;
@@ -369,12 +394,12 @@ void delete_file(char* name) {
 }
 
 int mkdir_path(char* path) {
-    int idx = resolve_dir_path(path, 1);
+    int idx = resolve_dir_path(path, 1, 0);
     return idx < 0 ? -1 : 0;
 }
 
 int cd_path(char* path) {
-    int idx = resolve_dir_path(path, 0);
+    int idx = resolve_dir_path(path, 0, 0);
     if (idx < 0) return -1;
     current_dir = idx;
     return 0;
@@ -384,6 +409,7 @@ int fs_open(char* path, int mode) {
     char leaf[16];
     int parent = resolve_parent_path(path, 1, leaf);
     if (parent < 0 || !leaf[0]) return -1;
+    if (has_permission(files[parent]) != 1) {vga_print_color("permission denied.\n", 0x0C); return -1;}
     int idx = find_child(parent, leaf, 0xFF);
     if (mode == 0) {
         if (idx < 0) return -1;
@@ -402,6 +428,8 @@ int fs_open(char* path, int mode) {
             files[idx].kind = FS_KIND_FILE;
             files[idx].alive = 1;
             files[idx].parent = parent;
+            files[idx].perms = PERM_READ | PERM_WRITE;
+            str_copy16(files[idx].owner, current_user);
         }
 
         return idx;

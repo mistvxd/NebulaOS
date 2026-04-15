@@ -4,17 +4,25 @@ msg db "digite algo guloso: "
 msg_len equ $ - msg
 msg2 db "salvo em test.txt"
 msg2_len equ $ - msg2
-filename db "/test.txt", 0
 nl db 10
 nl_len equ 1
 
 section .bss
 buffer resb 64
+filename resd 1
 
 section .text
 global _start
 
 _start:
+    mov eax, [esp + 4]
+    cmp eax, 2
+    jl .exit
+
+    mov eax, [esp + 8]
+    mov eax, [eax + 4]
+    mov [filename], eax
+
     mov eax, 2
     mov ebx, msg
     mov ecx, 0x0F
@@ -41,7 +49,7 @@ _start:
     int 0x80
 
     mov eax, 5
-    mov ebx, filename
+    mov ebx, [filename]
     mov ecx, 1
     int 0x80
 
@@ -51,5 +59,8 @@ _start:
     mov edx, esi
     int 0x80
 
+    jmp .exit
+
+.exit:
     mov eax, 1
     int 0x80

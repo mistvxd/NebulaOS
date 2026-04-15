@@ -8,8 +8,14 @@
 #define FS_KIND_BIN 1
 #define FS_KIND_DIR 2
 
+#define PERM_READ  1
+#define PERM_WRITE 2
+#define PERM_EXEC  4
+
 typedef struct File {
     char name[16];
+    char owner[16];
+    uint8_t perms;
     uint8_t* data;
     int size;
     uint8_t kind;
@@ -33,8 +39,9 @@ struct File* read_file(char* name);
 struct File* read_bin(char* name);
 void delete_file(char* name);
 void load_external_bin(char* name, int sector);
-int resolve_dir_path(char* path, int create_missing);
+int resolve_dir_path(char* path, int create_missing, int root_guided);
 int fs_open(char* path, int mode);
+int has_permission(File f);
 
 int mkdir_path(char* path);
 int cd_path(char* path);

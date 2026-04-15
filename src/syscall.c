@@ -5,18 +5,29 @@
 extern void vga_putchar(char, uint8_t);
 extern void process_exit();
 extern void vga_print(const char*);
+extern void vga_print_color(const char*, uint8_t);
+extern void vga_clear();
 extern void itoa(int, char*);
 extern void vga_print_hex(uint32_t);
 extern char keyboard_getchar();
+extern char* current_user;
+extern int is_root;
+extern char user_path_base;
+extern void strcat(char*, char*);
+extern void memcpy(void*, void*, uint32_t);
+extern int strcmp(char*, char*);
 
-#define SYS_EXIT        1
-#define SYS_WRITE       2
-#define SYS_FS_READDIR  3
-#define SYS_FS_CHDIR    4
-#define SYS_FS_OPEN     5
-#define SYS_FS_READ     6
-#define SYS_FS_WRITE    7
-#define SYS_READ        8
+#define SYS_EXIT              1
+#define SYS_WRITE             2
+#define SYS_FS_READDIR        3
+#define SYS_FS_CHDIR          4
+#define SYS_FS_OPEN           5
+#define SYS_FS_READ           6
+#define SYS_FS_WRITE          7
+#define SYS_READ              8
+#define SYS_LOGIN             9
+#define SYS_GET_CURRENT_USER  10
+#define SYS_TERMINAL_CLEAR    11
 
 #define USER_MAX 0x400000
 
@@ -29,6 +40,7 @@ struct interrupt_frame {
 
 struct dirent {
     char name[32];
+    char owner[16];
     uint32_t kind;
 };
 
@@ -121,7 +133,7 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
             int dir = current_dir;
 
             if (path && path[0]) {
-                dir = resolve_dir_path(path, 0);
+                dir = resolve_dir_path(path, 0, 0);
                 if (dir < 0) return 0;
             }
 
@@ -143,7 +155,13 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
                     if (files[i].kind == FS_KIND_DIR) {
                         kent.name[j++] = '/';
                     }
+                    int k = 0;
+                    while (files[i].owner[k] && k < 15) {
+                        kent.owner[k] = files[i].owner[k];
+                        k++;
+                    }
                     kent.name[j] = 0;
+                    kent.owner[k] = 0;
                     kent.kind = files[i].kind;
 
                     copy_to_user(user_ent, &kent, sizeof(kent));
@@ -206,10 +224,10 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
 		    int idx = frame->ebx;
 		    char* user_buf = (char*)frame->ecx;
 		    int size = frame->edx;
-
+            
             if (!valid_user_ptr(user_buf, size))
                 return -1;
-
+            
 		    if (idx < 0 || idx >= file_count) return -1;
 		    if (!files[idx].alive) return -1;
 		    if (files[idx].kind == FS_KIND_DIR) return -1;
@@ -237,6 +255,41 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
             int ret = sys_read(buffer, max);
 
             return ret;
+        }
+
+        case SYS_LOGIN: {
+            char* username = (char*)frame->ebx;
+            uint8_t kbuf[16];
+            
+            copy_from_user(kbuf, username, 16);
+            is_root = false;
+            if (strcmp(kbuf, "root") == 0) is_root = true;
+            current_user = kbuf;
+            if (!is_root) {
+                char user_path[64];
+                user_path[0] = '\0';
+                strcat(user_path, &user_path_base);
+                strcat(user_path, current_user);
+                resolve_dir_path(user_path, 1, 1);
+                cd_path(user_path);
+                strcat(user_path, "/utils");
+                resolve_dir_path(user_path, 1, 1);
+            }
+            else {
+                cd_path("/");
+            }
+            return 0;
+        }
+
+        case SYS_GET_CURRENT_USER: {
+            char* buffer = frame->ebx;
+            copy_to_user(buffer, current_user, 16);
+            return 0;
+        }
+
+        case SYS_TERMINAL_CLEAR: {
+            vga_clear();
+            return 0;
         }
     }
 

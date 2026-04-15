@@ -8,15 +8,15 @@ section .data
 nl db 10
 prefix db 16, 32, "["
 prefix_len equ $ - prefix
-suffix db "]  - "
+suffix db "] ||"
 suffix_len equ $ - suffix
-susuffix db "B"
-susuffix_len equ $ - susuffix
+ownertext db " owner: "
+ownertext_len equ $ - ownertext
 nofiles db "[empty]", 10
 nofiles_len equ $ - nofiles
 
 section .bss
-ent resb 36
+ent resb 62
 i   resd 1
 printed resd 1
 size resd 6
@@ -75,17 +75,20 @@ _start:
     mov edx, suffix_len
     int 0x80
 
-    mov edx, 1
-
     mov eax, SYS_WRITE
-    mov ebx, 0
+    mov ebx, ownertext
     mov ecx, 0x0F
+    mov edx, ownertext_len
     int 0x80
 
+    mov esi, ent + 32
+    call strlen
+
+    mov edx, eax
+
     mov eax, SYS_WRITE
-    mov ebx, susuffix
-    mov ecx, 0x0F
-    mov edx, susuffix_len
+    mov ebx, ent + 32
+    mov ecx, 0x03
     int 0x80
 
     mov eax, SYS_WRITE

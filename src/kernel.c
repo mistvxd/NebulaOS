@@ -24,6 +24,10 @@ jmp_buf kernel_ctx;
 uint32_t kernel_esp = 0;
 uint32_t kernel_eip = 0;
 
+char* current_user = "root";
+int is_root = 1;
+char user_path_base[] = "/home/";
+
 extern uint32_t heap_used();
 extern uint32_t heap_total();
 
@@ -99,6 +103,24 @@ __attribute__((naked)) void longjmp(jmp_buf* buf) {
         "mov $1, %eax\n"
         "ret\n"
     );
+}
+
+int strcmp(const char* a, const char* b) {
+    while (*a && (*a == *b)) {
+        a++;
+        b++;
+    }
+    return *(unsigned char*)a - *(unsigned char*)b;
+}
+
+void strcat(char* dest, const char* src) {
+    while (*dest) dest++;
+    while (*src) {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    *dest = '\0';
 }
 
 void vga_clear() {
@@ -194,7 +216,7 @@ char scancode_to_ascii(uint8_t sc) {
     static char map[128] = {
         0,27,'1','2','3','4','5','6','7','8','9','0','-','=', '\b',
         '\t','q','w','e','r','t','y','u','i','o','p','[',']','\n',
-        0,'a','s','d','f','g','h','j','k','l',';','\'','`',
+        0,'a','s','d','f','g','h','j','k','l',';','\'','~',
         0,'\\','z','x','c','v','b','n','m',',','.','/',
         0,'*',0,' '
     };
@@ -458,8 +480,17 @@ void kernel_print_info() {
 
 void shell() {
     while (1) {
-        print_path(0x02);
-        vga_print_color(" > ", 0x0A);
+        if (strcmp(current_user, "root") == 0) {
+            vga_print_color("root", 0x05);
+        }
+        else {
+            vga_print_color(current_user, 0x02);
+        }
+        vga_print_color("@", 0x07);
+        vga_print_color("nebula", 0x03);
+        vga_print_color(":", 0x07);
+        print_path(0x07);
+        vga_print_color(" $ ", 0x02);
         vga_enable_cursor();
         vga_update_cursor();
         input_reset();
@@ -542,9 +573,9 @@ void kernel_main(int x) {
     heap_init();
     load_fs();
 
-    resolve_dir_path("/teste", 1);
-    resolve_dir_path("/teste/teste2", 1);
-    resolve_dir_path("/bin", 1);
+    resolve_dir_path("/test", 1, 0);
+    resolve_dir_path("/bin", 1, 0);
+    resolve_dir_path("/home", 1, 0);
 
     uint8_t buffer[512];
     read_sector(10, buffer);
@@ -570,6 +601,16 @@ void kernel_main(int x) {
     read_sector(14, buffer);
 
     create_bin("bin/cat.bin", buffer, 512);
+    save_fs();
+
+    read_sector(15, buffer);
+
+    create_bin("bin/login.bin", buffer, 512);
+    save_fs();
+
+    read_sector(16, buffer);
+
+    create_bin("bin/clear.bin", buffer, 512);
     save_fs();
 
     if (x == 1) {

@@ -5,9 +5,9 @@ ISO = iso
 CFLAGS = -m32 -ffreestanding -mpreferred-stack-boundary=2
 LDFLAGS = -m elf_i386
 
-PROGRAMS = prog welcome cd ls cat
+PROGRAMS = prog welcome cd ls cat login clear
 
-all: kiwi.iso disk.img
+all: nebula.iso disk.img
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -62,12 +62,12 @@ programs: $(PROGRAMS:%=$(SRC)/programs/%.bin)
 
 # ================= ISO =================
 
-kiwi.iso: $(BUILD)/kernel.bin
+nebula.iso: $(BUILD)/kernel.bin
 	mkdir -p $(ISO)/boot/grub
 	cp $< $(ISO)/boot/kernel.bin
 	echo 'set timeout=0' > $(ISO)/boot/grub/grub.cfg
 	echo 'set default=0' >> $(ISO)/boot/grub/grub.cfg
-	echo 'menuentry "kiwi os" { multiboot /boot/kernel.bin }' >> $(ISO)/boot/grub/grub.cfg
+	echo 'menuentry "nebula os" { multiboot /boot/kernel.bin }' >> $(ISO)/boot/grub/grub.cfg
 	grub-mkrescue -o $@ $(ISO)
 
 # ================= DISK =================
@@ -83,8 +83,8 @@ disk.img: programs
 
 # ================= RUN =================
 
-run: kiwi.iso disk.img
-	qemu-system-i386 -cdrom kiwi.iso -d int -hda disk.img
+run: nebula.iso disk.img
+	qemu-system-i386 -cdrom nebula.iso -d int -hda disk.img
 
 # ================= CLEAN =================
 
