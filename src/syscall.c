@@ -13,6 +13,8 @@ extern char keyboard_getchar();
 extern char* current_user;
 extern int is_root;
 extern char user_path_base;
+extern int cursor_x;
+extern int cursor_y;
 extern void strcat(char*, char*);
 extern void memcpy(void*, void*, uint32_t);
 extern int strcmp(char*, char*);
@@ -28,6 +30,7 @@ extern int strcmp(char*, char*);
 #define SYS_LOGIN             9
 #define SYS_GET_CURRENT_USER  10
 #define SYS_TERMINAL_CLEAR    11
+#define SYS_MOVE_CURSOR       12
 
 #define USER_MAX 0x400000
 
@@ -80,27 +83,14 @@ static int copy_str_from_user(char* dst, const char* src, uint32_t max) {
     return -1;
 }
 
-int sys_read(char* buffer, int max) {
-    int i = 0;
+int sys_getchar() {
+    char c;
 
-    while (i < max - 1) {
-        char c = keyboard_getchar();
-        if (!c) continue;
+    while (1) {
+        c = keyboard_getchar();
 
-        if (c == '\n') {
-            buffer[i] = 0;
-            return i;
-        }
-
-        if (c == '\b') {
-            if (i > 0) i--;
-        } else {
-            buffer[i++] = c;
-        }
+        if (c) return c;
     }
-
-    buffer[i] = 0;
-    return i;
 }
 
 uint32_t syscall_handler(struct interrupt_frame* frame) {
@@ -251,10 +241,9 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
 
         case SYS_READ: {
             char* buffer = frame->ebx;
-            int max = frame->ecx;
-            int ret = sys_read(buffer, max);
-
-            return ret;
+            char ret = sys_getchar();
+            copy_to_user(buffer, &ret, 1);
+            return 0;
         }
 
         case SYS_LOGIN: {
@@ -289,6 +278,20 @@ uint32_t syscall_handler(struct interrupt_frame* frame) {
 
         case SYS_TERMINAL_CLEAR: {
             vga_clear();
+            return 0;
+        }
+
+        case SYS_MOVE_CURSOR: {
+            int x = frame->ebx;
+            int y = frame->ecx;
+
+            if (x < 0) x = 0;
+            if (x > 79) x = 79;
+            if (y < 0) y = 0;
+            if (y > 24) y = 24;
+
+            cursor_x = x;
+            cursor_y = y;
             return 0;
         }
     }

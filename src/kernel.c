@@ -466,16 +466,13 @@ void kernel_print_info() {
     print_path(0x0A);
     vga_print("\n");
 
-    vga_print_color("  irq    : ", 0x07);
-    vga_print_color("enabled", 0x0A);
-    vga_print("\n");
-
-    vga_print_color("  paging : ", 0x07);
-    vga_print_color("enabled", 0x0A);
-    vga_print("\n\n");
-
     for (int i = 0; i < 16; i++) { vga_putchar('=', 0x08); vga_putchar('-', 0x08); }
     vga_print("\n");
+}
+
+void reboot() {
+    while (inb(0x64) & 0x02);
+    outb(0x64, 0xFE);
 }
 
 void shell() {
@@ -494,6 +491,8 @@ void shell() {
         vga_enable_cursor();
         vga_update_cursor();
         input_reset();
+
+        int characters = 0;
 
         while (1) {
             char c = keyboard_getchar();
@@ -522,6 +521,7 @@ void shell() {
                 }
 
                 if (argc > 0) {
+                    if (strcmp(argv[0], "reboot") == 0) reboot();
                     struct File* prog = find_program(argv[0]);
                     if (prog) {
                         run_raw(prog, argc, argv);
@@ -536,10 +536,13 @@ void shell() {
                 }
                 break;
             } else if (c == '\b') {
+                if (characters <= 0) continue;
+                characters--;
                 input_backspace();
                 vga_putchar('\b', 0x0F);
                 vga_update_cursor();
             } else {
+                characters++;
                 input_add(c);
                 vga_putchar(c, 0x0F);
                 vga_update_cursor();
@@ -580,7 +583,7 @@ void kernel_main(int x) {
     uint8_t buffer[512];
     read_sector(10, buffer);
 
-    create_bin("bin/prog.bin", buffer, 512);
+    create_bin("bin/editor.bin", buffer, 512);
     save_fs();
 
     read_sector(11, buffer);
@@ -613,9 +616,24 @@ void kernel_main(int x) {
     create_bin("bin/clear.bin", buffer, 512);
     save_fs();
 
+    read_sector(17, buffer);
+
+    create_bin("bin/gta6.bin", buffer, 512);
+    save_fs();
+
+    read_sector(18, buffer);
+
+    create_bin("bin/whoami.bin", buffer, 512);
+    save_fs();
+
+    read_sector(19, buffer);
+
+    create_bin("bin/game.bin", buffer, 512);
+    save_fs();
+
     if (x == 1) {
         run_raw(find_program("welcome.bin"), 1, (char*[1]){"test"});
-        //kernel_print_info();
+        kernel_print_info();
     }
 
     outb(0x21, 0xFD);

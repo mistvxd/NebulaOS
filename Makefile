@@ -5,14 +5,12 @@ ISO = iso
 CFLAGS = -m32 -ffreestanding -mpreferred-stack-boundary=2
 LDFLAGS = -m elf_i386
 
-PROGRAMS = prog welcome cd ls cat login clear
+PROGRAMS = editor welcome cd ls cat login clear gta6 whoami game
 
 all: nebula.iso disk.img
 
 $(BUILD):
 	mkdir -p $(BUILD)
-
-# ================= KERNEL =================
 
 $(BUILD)/boot.o: $(SRC)/boot.s | $(BUILD)
 	nasm -f elf32 $< -o $@
@@ -47,8 +45,6 @@ KERNEL_OBJS = \
 $(BUILD)/kernel.bin: $(KERNEL_OBJS)
 	ld $(LDFLAGS) -T $(SRC)/linker.ld -o $@ $^
 
-# ================= USER PROGRAMS =================
-
 $(BUILD)/%.o: $(SRC)/programs/%.asm | $(BUILD)
 	nasm -f elf32 $< -o $@
 
@@ -60,8 +56,6 @@ $(SRC)/programs/%.bin: $(BUILD)/%.elf
 
 programs: $(PROGRAMS:%=$(SRC)/programs/%.bin)
 
-# ================= ISO =================
-
 nebula.iso: $(BUILD)/kernel.bin
 	mkdir -p $(ISO)/boot/grub
 	cp $< $(ISO)/boot/kernel.bin
@@ -69,8 +63,6 @@ nebula.iso: $(BUILD)/kernel.bin
 	echo 'set default=0' >> $(ISO)/boot/grub/grub.cfg
 	echo 'menuentry "nebula os" { multiboot /boot/kernel.bin }' >> $(ISO)/boot/grub/grub.cfg
 	grub-mkrescue -o $@ $(ISO)
-
-# ================= DISK =================
 
 disk.img: programs
 	dd if=/dev/zero of=$@ bs=512 count=100
@@ -81,12 +73,8 @@ disk.img: programs
 		i=$$((i+1)); \
 	done
 
-# ================= RUN =================
-
 run: nebula.iso disk.img
 	qemu-system-i386 -cdrom nebula.iso -d int -hda disk.img
-
-# ================= CLEAN =================
 
 clean:
 	rm -rf $(BUILD) $(ISO) *.iso disk.img
