@@ -409,13 +409,13 @@ int fs_open(char* path, int mode) {
     char leaf[16];
     int parent = resolve_parent_path(path, 1, leaf);
     if (parent < 0 || !leaf[0]) return -1;
-    if (has_permission(files[parent]) != 1) {vga_print_color("permission denied.\n", 0x0C); return -1;}
     int idx = find_child(parent, leaf, 0xFF);
     if (mode == 0) {
         if (idx < 0) return -1;
         return idx;
     }
     if (mode == 1) {
+        if (has_permission(files[parent]) != 1) {vga_print_color("permission denied.\n", 0x0C); return -1;}
         if (idx >= 0) {
             if (files[idx].data) free(files[idx].data);
             files[idx].data = 0;

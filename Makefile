@@ -5,7 +5,7 @@ ISO = iso
 CFLAGS = -m32 -ffreestanding -mpreferred-stack-boundary=2
 LDFLAGS = -m elf_i386
 
-PROGRAMS = editor welcome cd ls cat login clear gta6 whoami game
+PROGRAMS = editor welcome cd ls cat login clear gta6 whoami game shell
 
 all: nebula.iso disk.img
 
@@ -74,7 +74,7 @@ disk.img: programs
 	done
 
 run: nebula.iso disk.img
-	qemu-system-i386 -cdrom nebula.iso -d int -hda disk.img
+	qemu-system-i386 -cdrom nebula.iso -d int,cpu_reset,guest_errors -hda disk.img -no-reboot -no-shutdown
 
 clean:
 	rm -rf $(BUILD) $(ISO) *.iso disk.img

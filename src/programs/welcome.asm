@@ -1,5 +1,3 @@
-[bits 32]
-
 section .data
     msg db "Welcome to NebulaOS!", 10
     len equ $ - msg

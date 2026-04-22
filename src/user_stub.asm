@@ -2,10 +2,6 @@
 
 global syscall_stub
 extern syscall_handler
-extern kernel_esp
-extern kernel_eip
-extern current_process_active
-extern kernel_stack_top
 
 section .text
 
