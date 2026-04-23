@@ -580,55 +580,25 @@ void kernel_main(int x) {
     resolve_dir_path("/bin", 1, 0);
     resolve_dir_path("/home", 1, 0);
 
-    uint8_t buffer[512];
-    read_sector(10, buffer);
+    char programs[10][16] = {
+        "bin/editor.bin",
+        "bin/welcome.bin",
+        "bin/cd.bin",
+        "bin/ls.bin",
+        "bin/cat.bin",
+        "bin/login.bin",
+        "bin/clear.bin",
+        "bin/gta6.bin",
+        "bin/whoami.bin",
+        "bin/game.bin"
+    };
 
-    create_bin("bin/editor.bin", buffer, 512);
-    save_fs();
+    for (int i = 10; i < 20; i++) {
+        uint8_t buffer[512];
+        read_sector(i, buffer);
+        create_bin(programs[i - 10], buffer, 512);
+    }
 
-    read_sector(11, buffer);
-
-    create_bin("bin/welcome.bin", buffer, 512);
-    save_fs();
-
-    read_sector(12, buffer);
-
-    create_bin("bin/cd.bin", buffer, 512);
-    save_fs();
-
-    read_sector(13, buffer);
-
-    create_bin("bin/ls.bin", buffer, 512);
-    save_fs();
-
-    read_sector(14, buffer);
-
-    create_bin("bin/cat.bin", buffer, 512);
-    save_fs();
-
-    read_sector(15, buffer);
-
-    create_bin("bin/login.bin", buffer, 512);
-    save_fs();
-
-    read_sector(16, buffer);
-
-    create_bin("bin/clear.bin", buffer, 512);
-    save_fs();
-
-    read_sector(17, buffer);
-
-    create_bin("bin/gta6.bin", buffer, 512);
-    save_fs();
-
-    read_sector(18, buffer);
-
-    create_bin("bin/whoami.bin", buffer, 512);
-    save_fs();
-
-    read_sector(19, buffer);
-
-    create_bin("bin/game.bin", buffer, 512);
     save_fs();
 
     if (x == 1) {
